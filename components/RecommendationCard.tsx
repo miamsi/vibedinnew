@@ -49,6 +49,13 @@ export function RecommendationCard({ rec, vibe, index }: { rec: Recommendation; 
       <p className="mt-1.5 font-mono text-[11px] tracking-[0.05em]" style={{ color: vibe.accent }}>
         {Math.round(rec.match * 100)}% match
       </p>
+      {(rec.tagMatch || rec.bpm) && (
+        <p className="mt-0.5 font-mono text-[10px] tracking-[0.04em] text-ink-muted/70">
+          {rec.tagMatch && `${rec.tagMatch.tier}/${rec.tagMatch.possible} tags`}
+          {rec.tagMatch && rec.bpm && " · "}
+          {rec.bpm && `~${rec.bpm.typical} bpm`}
+        </p>
+      )}
       {rec.why && <p className="mt-1.5 line-clamp-2 w-full text-[11px] leading-snug text-ink-muted/80">{rec.why}</p>}
     </motion.div>
   );

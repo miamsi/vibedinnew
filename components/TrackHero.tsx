@@ -60,6 +60,12 @@ export function TrackHero({
             ))}
           </div>
 
+          {seed.bpm && (
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted/70">
+              ~{seed.bpm.typical} bpm (est. {seed.bpm.low}–{seed.bpm.high}, {seed.bpm.confidence} confidence)
+            </p>
+          )}
+
           {blurb && <p className="mt-4 max-w-lg text-[15px] italic leading-relaxed text-ink-muted">“{blurb}”</p>}
 
           {seed.preview && (

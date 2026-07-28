@@ -62,7 +62,7 @@ const GENRE_TAGS = new Set([
   "worldmusic"
 ]);
 
-function normalize(tag: string): string {
+export function normalize(tag: string): string {
   return tag.toLowerCase().replace(/[\s\-&]/g, "");
 }
 

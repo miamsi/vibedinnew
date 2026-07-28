@@ -1,3 +1,5 @@
+import { BpmEstimate } from "./bpm";
+
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // Groq deprecated the old llama-3.1-8b-instant / llama-3.3-70b-versatile
@@ -52,6 +54,10 @@ export type CurationCandidate = {
   match: number;
   source: "similar" | "tag";
   tags?: string[];
+  /** Weighted overlap with the seed's own tags — see lib/tagTrust.ts */
+  tagOverlap?: { tier: number; possible: number; score: number };
+  /** Genre-tag-derived tempo prior — see lib/bpm.ts. Never a measurement. */
+  bpmEstimate?: BpmEstimate | null;
 };
 export type CuratedPick = { artist: string; track: string; why: string };
 export type CurationResult = { blurb: string | null; picks: CuratedPick[] };
@@ -74,7 +80,8 @@ export async function curateRecommendations(
   seedTrack: string,
   seedGenres: string[],
   seedMoods: string[],
-  candidates: CurationCandidate[]
+  candidates: CurationCandidate[],
+  seedBpm?: BpmEstimate | null
 ): Promise<CurationResult | null> {
   if (!candidates.length) return null;
 
@@ -83,6 +90,8 @@ export async function curateRecommendations(
       const bits = [`source: ${c.source}`];
       if (c.source === "similar") bits.push(`lastfm match ${c.match.toFixed(2)}`);
       if (c.tags?.length) bits.push(`tags: ${c.tags.join(", ")}`);
+      if (c.tagOverlap) bits.push(`tag overlap: ${c.tagOverlap.tier}/${c.tagOverlap.possible} (weighted ${c.tagOverlap.score.toFixed(2)})`);
+      if (c.bpmEstimate) bits.push(`est. bpm: ~${c.bpmEstimate.typical} (${c.bpmEstimate.low}-${c.bpmEstimate.high}, ${c.bpmEstimate.confidence} confidence)`);
       return `${i}. "${c.track}" — ${c.artist} [${bits.join("; ")}]`;
     })
     .join("\n");
@@ -95,6 +104,10 @@ You'll get a seed track with its genre tags and mood tags kept separate, and a n
 - "similar": track.getSimilar, a collaborative-filtering endpoint that is heavily biased toward the seed's OWN artist and raw popularity, not actual vibe.
 - "tag": tag.getTopTracks, tracks sharing one of the seed's tags, spanning many different artists.
 Each candidate lists its own Last.fm tags where available — treat those as real data, not the collaborative-filtering "similar" bias.
+
+Some candidates also carry two computed signals, when available:
+- "tag overlap": how many of the seed's own tags this candidate shares, weighted by how rare/specific each shared tag is (a shared "dream pop" counts far more than a shared "rock"). Higher weighted score = more genuinely similar, not just same-artist-adjacent.
+- "est. bpm": a rough tempo RANGE inferred from genre tags only — never a real measurement, and "low confidence" ranges are little more than a guess. Use it only as a soft tiebreaker between otherwise-similar candidates (prefer the one whose range overlaps the seed's), never as a reason to exclude an otherwise strong pick, and never state a specific BPM number in a "why" as if it were measured fact.
 
 How to weigh genre vs mood — this is the most important rule:
 - Genre is a near-hard constraint. A candidate whose tags clearly belong to a different genre family than the seed's genre tags (e.g. seed is R&B/soul, candidate is tagged metal/hardcore) should be EXCLUDED even if its match score is high or it's mood-adjacent — unless the candidate pool has too few in-genre options to fill 16 picks.
@@ -113,6 +126,7 @@ Respond ONLY with JSON:
     `Seed: "${seedTrack}" by ${seedArtist}.
 Seed genre tags: ${seedGenres.length ? seedGenres.join(", ") : "(none identified — infer from artist)"}.
 Seed mood tags: ${seedMoods.length ? seedMoods.join(", ") : "(none identified)"}.
+Seed est. bpm: ${seedBpm ? `~${seedBpm.typical} (${seedBpm.low}-${seedBpm.high}, ${seedBpm.confidence} confidence)` : "(no genre tag matched the bpm table)"}.
 
 Candidates:
 ${list}`

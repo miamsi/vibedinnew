@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  manifest: "/manifest.json",
   title: "Vibedin — follow the vibe",
   description:
     "Drop in a song or describe a mood, and Vibedin matches the sonic DNA to find what to play next.",
